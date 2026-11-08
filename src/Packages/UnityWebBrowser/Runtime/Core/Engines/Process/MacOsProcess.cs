@@ -3,6 +3,7 @@
 // 
 // This project is under the MIT license.See the LICENSE.md file for more details.
 
+using System;
 using System.Diagnostics;
 using VoltstroStudios.UnityWebBrowser.Helper;
 
@@ -19,8 +20,8 @@ namespace VoltstroStudios.UnityWebBrowser.Core.Engines.Process
             process = new System.Diagnostics.Process();
         }
 
-        public void StartProcess(string executable, string workingDir, string arguments, DataReceivedEventHandler onLogEvent,
-            DataReceivedEventHandler onErrorLogEvent)
+        public void StartProcess(string executable, string workingDir, string arguments, Action<string> onLogEvent,
+            Action<string> onErrorLogEvent)
         {
             ProcessStartInfo startInfo = new(executable, arguments)
             {
@@ -32,8 +33,8 @@ namespace VoltstroStudios.UnityWebBrowser.Core.Engines.Process
             };
 
             process.StartInfo = startInfo;
-            process.OutputDataReceived += onLogEvent;
-            process.ErrorDataReceived += onErrorLogEvent;
+            process.OutputDataReceived += (_, entry) => onLogEvent?.Invoke(entry.Data);
+            process.ErrorDataReceived += (_, entry) => onErrorLogEvent?.Invoke(entry.Data);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();

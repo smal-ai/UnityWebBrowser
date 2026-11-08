@@ -4,7 +4,6 @@
 // This project is under the MIT license. See the LICENSE.md file for more details.
 
 using System;
-using System.Diagnostics;
 using Newtonsoft.Json;
 using UnityEngine.Scripting;
 using VoltstroStudios.UnityWebBrowser.Core;
@@ -31,22 +30,22 @@ namespace VoltstroStudios.UnityWebBrowser.Logging
 
         public event Action<string> OnProcessErrorLog;
 
-        internal void HandleErrorProcessLog(object sender, DataReceivedEventArgs e)
+        internal void HandleErrorProcessLog(string line)
         {
-            if (e.Data == null)
+            if (line == null)
                 return;
 
-            OnProcessErrorLog?.Invoke(e.Data);
+            OnProcessErrorLog?.Invoke(line);
         }
 
-        internal void HandleOutputProcessLog(object sender, DataReceivedEventArgs e)
+        internal void HandleOutputProcessLog(string line)
         {
-            if (e.Data == null)
+            if (line == null)
                 return;
 
             try
             {
-                JsonLogStructure logStructure = ReadJsonLog(e.Data);
+                JsonLogStructure logStructure = ReadJsonLog(line);
 
                 if (logStructure.Level is LogSeverity.Debug or LogSeverity.Info)
                     logger.Debug($"[{logStructure.Category}]: {logStructure.Message}");
@@ -62,14 +61,14 @@ namespace VoltstroStudios.UnityWebBrowser.Logging
                 if(ignoreLogProcessJsonErrors)
                     return;
                 
-                logger.Error($"A log message from the UWB engine was not in a JSON format!\n\nRaw Log Message:\n{e.Data}");
+                logger.Error($"A log message from the UWB engine was not in a JSON format!\n\nRaw Log Message:\n{line}");
             }
             catch (Exception ex)
             {
-                logger.Error($"An error occured with processing a log event from the UWB engine!\n\nRaw Log Message:\n{e.Data}\n\nException:\n{ex}");
+                logger.Error($"An error occured with processing a log event from the UWB engine!\n\nRaw Log Message:\n{line}\n\nException:\n{ex}");
             }
 
-            OnProcessOutputLog?.Invoke(e.Data);
+            OnProcessOutputLog?.Invoke(line);
         }
 
         /// <summary>
