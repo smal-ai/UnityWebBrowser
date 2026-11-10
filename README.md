@@ -35,6 +35,18 @@ Unity 2021.3.x
 
 For a more in-depth installation guide, check out the [setup article](https://projects.voltstro.dev/UnityWebBrowser/latest/articles/user/setup/).
 
+### Windows ARM64 in this fork
+
+This fork adds a native Windows process launcher for IL2CPP players, fixes input
+when the pointer enters before browser startup, and handles Escape from page
+fullscreen. A native Windows ARM64 Unity player has rendered and interacted with
+HTML using the published x64 CEF engine under emulation.
+
+The tested configuration explicitly disables the CEF sandbox for trusted local
+HTML. See the [Windows ARM64 guide](docs/articles/user/windows-arm64.md) for setup,
+validation and remaining limitations. The runtime does not disable the sandbox by
+default.
+
 ## Documentation
 
 For further documentation, see [UWB's project site](https://projects.voltstro.dev/UnityWebBrowser/latest/articles/).
