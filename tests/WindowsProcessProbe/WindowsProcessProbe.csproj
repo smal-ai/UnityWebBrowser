@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>10</LangVersion>
+    <DefineConstants>UNITY_STANDALONE_WIN</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../src/Packages/UnityWebBrowser/Runtime/Core/Engines/Process/IProcess.cs" Link="Runtime/IProcess.cs" />
+    <Compile Include="../../src/Packages/UnityWebBrowser/Runtime/Core/Engines/Process/WindowProcess.cs" Link="Runtime/WindowProcess.cs" />
+  </ItemGroup>
+</Project>
