@@ -65,9 +65,7 @@ namespace VoltstroStudios.UnityWebBrowser.Core
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (browserClient is { IsConnected: false })
-                return;
-
+            // The loop already waits for readiness. Do not lose hover input during startup.
             keyboardAndMouseHandlerCoroutine = StartCoroutine(KeyboardAndMouseHandler());
         }
 
