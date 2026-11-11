@@ -44,3 +44,5 @@
       href: dev/project-layout.md
     - name: Publishing
       href: dev/publishing.md
+    - name: CI and GitHub Releases
+      href: dev/releases.md

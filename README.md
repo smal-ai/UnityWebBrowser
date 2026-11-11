@@ -49,6 +49,14 @@ default.
 
 ## Documentation
 
+### Binary releases
+
+The fork's CI builds Windows x64, Linux x64 and macOS Intel/ARM64 CEF engines, plus
+the Unity packages that use them. Version tags publish the verified package
+tarballs, SHA-256 checksums and source manifest to
+[GitHub Releases](https://github.com/smal-ai/UnityWebBrowser/releases).
+See [CI and release instructions](docs/articles/dev/releases.md).
+
 For further documentation, see [UWB's project site](https://projects.voltstro.dev/UnityWebBrowser/latest/articles/).
 
 The project site covers information such as Engines, Platform support, advance setup, plus more.

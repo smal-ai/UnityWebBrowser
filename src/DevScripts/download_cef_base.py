@@ -1,60 +1,76 @@
+"""Download the CEF version pinned by CefGlue, verify it, and extract safely."""
+
+import copy
+import hashlib
 import os
+from pathlib import Path
 import re
 import shutil
+import tarfile
+import tempfile
+from urllib.request import urlopen
 
-from urllib.request import urlretrieve
-from tarfile import open as taropen
+ROOT = Path(__file__).resolve().parents[1]
+PLATFORMS = {'windows64', 'linux64', 'macosx64', 'macosarm64'}
+
+
+def extract_cef(archive, destination, archive_root):
+    with tarfile.open(archive, 'r:bz2') as source:
+        members = []
+        for original in source.getmembers():
+            if original.name.rstrip('/') == archive_root:
+                continue
+            if not original.name.startswith(archive_root + '/'):
+                raise ValueError('CEF archive contains an unexpected root: ' + original.name)
+            member = copy.copy(original)
+            member.name = original.name[len(archive_root) + 1:]
+            members.append(member)
+        source.extractall(destination, members=members, filter='data')
+
 
 def download_cef(os_platform: str) -> str:
-    """
-    Downloads and extracts CEF binaries
-
-    Returns where the extract tar contents are
-    """
-
-    # Get and read version file
-    cef_version_file = os.path.abspath(os.path.join(__file__, '../../ThirdParty/CefGlue/CefGlue/Interop/version.g.cs'))
-    if not os.path.exists(cef_version_file):
-        raise Exception('Cef version file does not exist!')
-    
-    with open(cef_version_file, 'r') as version_file:
-        version_file = version_file.read()
-
-    # Find version in file
-    matches = re.search(r'CEF_VERSION = \"(.*)\"', version_file)
-    version_match = matches.group(1)
-
-    # Get temp path
-    temp_path = os.path.abspath(os.path.join(__file__, '../../ThirdParty/Libs/cef/temp/'))
-    if not os.path.exists(temp_path):
-        os.makedirs(temp_path, exist_ok=True)
-    
-    # Download compiled cef tar.bz2
-    cef_tar_name = 'cef_binary_{0}_{1}_minimal'.format(version_match, os_platform)
-    cef_tar_download_url = 'https://cef-builds.spotifycdn.com/{0}.tar.bz2'.format(cef_tar_name)
-    cef_tar_path = os.path.join(temp_path, '{0}.tar.bz2'.format(cef_tar_name))
-
-    print('Downloading cef tar.gz from \'{0}\' to \'{1}\''.format(cef_tar_download_url, cef_tar_path))
-    urlretrieve(cef_tar_download_url, cef_tar_path)
-    if not os.path.exists(cef_tar_path):
-        raise Exception('Cef tar download filed!')
-    
-    # Extract tar.bz2
-    cef_extracted_tar_path = os.path.abspath(os.path.join(__file__, '../../ThirdParty/Libs/cef/{0}'.format(os_platform)))
-    if os.path.exists(cef_extracted_tar_path):
-        shutil.rmtree(cef_extracted_tar_path)
-    os.makedirs(cef_extracted_tar_path, exist_ok=True)
-
-    print('Extracting \'{0}\' to \'{1}\'...'.format(cef_tar_path, cef_extracted_tar_path))
-
-    cef_tar_name_length = len(cef_tar_name) + 1
-
-    with taropen(cef_tar_path) as tar_file:
-        cef_subdir_files = []
-        for member in tar_file.getmembers():
-            member.path = member.path[cef_tar_name_length:]
-            cef_subdir_files.append(member)
-
-        tar_file.extractall(cef_extracted_tar_path, members=cef_subdir_files)
-
-    return cef_extracted_tar_path
+    if os_platform not in PLATFORMS:
+        raise ValueError('Unsupported CEF platform: ' + os_platform)
+    version_file = ROOT / 'ThirdParty/CefGlue/CefGlue/Interop/version.g.cs'
+    match = re.search(r'CEF_VERSION = "([^"]+)"', version_file.read_text())
+    if match is None:
+        raise ValueError('Pinned CefGlue source does not declare a CEF version.')
+    version = match.group(1)
+    archive_root = f'cef_binary_{version}_{os_platform}_minimal'
+    cache = ROOT / 'ThirdParty/Libs/cef'
+    cache.mkdir(parents=True, exist_ok=True)
+    archive = cache / (archive_root + '.tar.bz2')
+    url = 'https://cef-builds.spotifycdn.com/' + archive.name
+    # CEF publishes SHA-1 sidecars. Release packages additionally use SHA-256.
+    with urlopen(url + '.sha1', timeout=120) as response:
+        expected = response.read(256).decode('ascii').strip().split()[0].lower()
+    if not re.fullmatch(r'[0-9a-f]{40}', expected):
+        raise ValueError('CEF checksum sidecar is invalid.')
+    if not archive.exists():
+        with tempfile.NamedTemporaryFile(dir=cache, suffix='.partial', delete=False) as output:
+            partial = Path(output.name)
+            with urlopen(url, timeout=120) as response:
+                shutil.copyfileobj(response, output)
+        with partial.open('rb') as stream:
+            actual = hashlib.file_digest(stream, 'sha1').hexdigest()
+        if actual != expected:
+            raise ValueError('CEF download checksum differs. Partial retained: ' + str(partial))
+        os.replace(partial, archive)
+    with archive.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha1').hexdigest()
+    if actual != expected:
+        raise ValueError('Existing CEF archive checksum differs. No overwrite: ' + str(archive))
+    destination = cache / os_platform
+    stamp = destination / '.uwb-cef-archive-sha1'
+    if destination.exists():
+        if stamp.is_file() and stamp.read_text().strip() == expected:
+            return str(destination)
+        raise ValueError('Existing CEF directory is not this verified extraction. No overwrite: ' + str(destination))
+    with tempfile.TemporaryDirectory(dir=cache, prefix=os_platform + '-') as temporary:
+        extracted = Path(temporary) / 'extracted'
+        extracted.mkdir()
+        extract_cef(archive, extracted, archive_root)
+        (extracted / stamp.name).write_text(expected + '\n')
+        os.rename(extracted, destination)
+    print(f'Verified and extracted CEF {version} for {os_platform}.')
+    return str(destination)

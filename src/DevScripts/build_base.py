@@ -20,11 +20,10 @@ def build_cef_engine(platform: str) -> None:
 
     print('Build CEF project \'{0}\' to \'{1}\''.format(cef_project_path, cef_publish_path))
 
-    subprocess.run(['dotnet', 'publish', cef_project_path, '-r=' + platform, '-p:PublishDir=' + cef_publish_path, '--nologo'])
+    subprocess.run(['dotnet', 'publish', cef_project_path, '-c=Release', '-r=' + platform, '-p:PublishDir=' + cef_publish_path, '--nologo'], check=True)
 
 
 def build_project(project: str) -> None:
     project_path = os.path.abspath(os.path.join(__file__, '../../{0}/{0}.csproj'.format(project)))
 
-    subprocess.run(['dotnet', 'build', project_path, '-c=ReleaseUnity'])
-
+    subprocess.run(['dotnet', 'build', project_path, '-c=ReleaseUnity'], check=True)
