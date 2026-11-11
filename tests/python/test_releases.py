@@ -1,4 +1,6 @@
 import io
+import hashlib
+from http.client import IncompleteRead
 import json
 import os
 from pathlib import Path
@@ -10,6 +12,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'ci'))
@@ -304,6 +307,61 @@ class ReleaseTests(unittest.TestCase):
         archive, destination = self.cef_archive(['different/Release/libcef.so'])
         with self.assertRaises(ValueError):
             download_cef_base.extract_cef(archive, destination, 'cef-test')
+
+    def download_response(self, content, length=None):
+        response = io.BytesIO(content)
+        response.status = 200
+        response.headers = {'Content-Length': str(len(content) if length is None else length)}
+        return response
+
+    def test_bad_cef_download_retries_without_weakening_the_checksum(self):
+        good = b'controlled verified CEF archive fixture'
+        expected = hashlib.sha1(good).hexdigest()
+        archive = self.output / 'cef.tar.bz2'
+        with patch.object(download_cef_base, 'urlopen', side_effect=[
+                self.download_response(b'damaged'), self.download_response(good)]) as request:
+            download_cef_base.download_verified('https://example.test/cef.tar.bz2', expected, archive)
+        self.assertEqual(archive.read_bytes(), good)
+        self.assertEqual(request.call_count, 2)
+        self.assertIn('uwb_sha1=' + expected, request.call_args.args[0].full_url)
+        self.assertEqual(len(list(self.output.glob('*.partial'))), 1)
+
+    def test_short_cef_response_is_rejected_even_when_its_hash_matches(self):
+        good = b'fixture'
+        expected = hashlib.sha1(good).hexdigest()
+        archive = self.output / 'cef.tar.bz2'
+        with patch.object(download_cef_base, 'urlopen', side_effect=[
+                self.download_response(good, length=100), self.download_response(good)]) as request:
+            download_cef_base.download_verified('https://example.test/cef.tar.bz2', expected, archive)
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual(archive.read_bytes(), good)
+
+    def test_repeated_bad_cef_downloads_fail_after_three_attempts(self):
+        archive = self.output / 'cef.tar.bz2'
+        with patch.object(download_cef_base, 'urlopen', side_effect=[
+                self.download_response(b'bad') for _ in range(3)]) as request:
+            with self.assertRaises(ValueError):
+                download_cef_base.download_verified('https://example.test/cef.tar.bz2', 'a' * 40, archive)
+        self.assertEqual(request.call_count, 3)
+        self.assertFalse(archive.exists())
+        self.assertEqual(len(list(self.output.glob('*.partial'))), 3)
+
+    def test_missing_cef_archive_is_not_blindly_retried(self):
+        error = HTTPError('https://example.test/missing', 404, 'Not Found', {}, None)
+        with patch.object(download_cef_base, 'urlopen', side_effect=error) as request:
+            with self.assertRaises(HTTPError):
+                download_cef_base.download_verified(error.url, 'a' * 40, self.output / 'cef.tar.bz2')
+        self.assertEqual(request.call_count, 1)
+
+    def test_interrupted_cef_transfer_can_retry_a_verified_response(self):
+        good = b'fixture'
+        expected = hashlib.sha1(good).hexdigest()
+        archive = self.output / 'cef.tar.bz2'
+        with patch.object(download_cef_base, 'urlopen', side_effect=[
+                IncompleteRead(b'part', 20), self.download_response(good)]) as request:
+            download_cef_base.download_verified('https://example.test/cef.tar.bz2', expected, archive)
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual(archive.read_bytes(), good)
 
     def test_workflow_pins_actions_and_only_publishes_tags(self):
         text = (ROOT / '.github/workflows/main.yml').read_text()
