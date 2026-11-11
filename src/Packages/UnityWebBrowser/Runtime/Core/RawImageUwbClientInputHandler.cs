@@ -65,9 +65,7 @@ namespace VoltstroStudios.UnityWebBrowser.Core
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (browserClient is { IsConnected: false })
-                return;
-
+            // The loop already waits for readiness. Do not lose hover input during startup.
             keyboardAndMouseHandlerCoroutine = StartCoroutine(KeyboardAndMouseHandler());
         }
 
@@ -201,7 +199,13 @@ namespace VoltstroStudios.UnityWebBrowser.Core
                         string inputBuffer = inputHandler.GetFrameInputBuffer();
 
                         if (keysDown.Length > 0 || keysUp.Length > 0 || inputBuffer.Length > 0)
+                        {
                             browserClient.SendKeyboardControls(keysDown, keysUp, inputBuffer.ToCharArray());
+                            // Windowless CEF has no browser chrome to handle its Escape accelerator.
+                            // Preserve key delivery and explicitly leave page fullscreen when focused.
+                            if (Application.isFocused && Array.IndexOf(keysDown, WindowsKey.Escape) >= 0)
+                                browserClient.ExecuteJs("if (document.fullscreenElement) document.exitFullscreen();");
+                        }
                     }
                 }
             }

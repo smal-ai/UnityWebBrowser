@@ -15,9 +15,9 @@ Newer Unity versions should work, but are untested!
 At a base level, UWB supports all major desktop platforms (Windows, Linux and MacOS). However, different engines may have different platform support. Platform different engines support are listed in the [engines section](engines.md).
 
 > [!WARNING]
-> UWB does **NOT** support [IL2CPP](https://docs.unity3d.com/Manual/IL2CPP.html). This is because UWB requires launching a separate process, which uses System.Diagnostics.Process API that [IL2CPP doesn't support](https://docs.unity3d.com/2021.3/Documentation/Manual/ScriptingRestrictions.html).
+> This fork uses a native process launcher for Windows players. Windows ARM64 IL2CPP has been tested with the published x64 CEF engine running under emulation. See [Windows ARM64](windows-arm64.md) for the required configuration and measured results.
 >
-> UWB does however support being code trimmed.
+> Linux and macOS still use `System.Diagnostics.Process`. These changes do not establish IL2CPP support on those platforms. The tested Windows configuration uses Minimal managed stripping, not maximum stripping.
 
 ## VoltUPR Setup
 

@@ -27,8 +27,8 @@ namespace VoltstroStudios.UnityWebBrowser.Core.Engines.Process
         public bool HasExited => process.HasExited;
         public int ExitCode => process.ExitCode;
 
-        public void StartProcess(string executable, string workingDir, string arguments, DataReceivedEventHandler onLogEvent,
-            DataReceivedEventHandler onErrorLogEvent)
+        public void StartProcess(string executable, string workingDir, string arguments, Action<string> onLogEvent,
+            Action<string> onErrorLogEvent)
         {
             ProcessStartInfo startInfo = new(executable, arguments)
             {
@@ -40,8 +40,8 @@ namespace VoltstroStudios.UnityWebBrowser.Core.Engines.Process
             };
 
             process.StartInfo = startInfo;
-            process.OutputDataReceived += onLogEvent;
-            process.ErrorDataReceived += onErrorLogEvent;
+            process.OutputDataReceived += (_, entry) => onLogEvent?.Invoke(entry.Data);
+            process.ErrorDataReceived += (_, entry) => onErrorLogEvent?.Invoke(entry.Data);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();

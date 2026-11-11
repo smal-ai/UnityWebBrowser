@@ -27,6 +27,8 @@
       href: user/runtime.md
     - name: Player Build
       href: user/player-build.md
+    - name: Windows ARM64
+      href: user/windows-arm64.md
 
 - name: Developer
   items:

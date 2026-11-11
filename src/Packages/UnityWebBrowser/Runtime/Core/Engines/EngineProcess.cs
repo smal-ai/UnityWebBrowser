@@ -4,7 +4,6 @@
 // This project is under the MIT license. See the LICENSE.md file for more details.
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using VoltstroStudios.UnityWebBrowser.Core.Engines.Process;
 using VoltstroStudios.UnityWebBrowser.Helper;
@@ -57,7 +56,7 @@ namespace VoltstroStudios.UnityWebBrowser.Core.Engines
         /// <param name="arguments"></param>
         /// <param name="onLogEvent"></param>
         /// <param name="onErrorLogEvent"></param>
-        public void StartProcess(string arguments, DataReceivedEventHandler onLogEvent, DataReceivedEventHandler onErrorLogEvent)
+        public void StartProcess(string arguments, Action<string> onLogEvent, Action<string> onErrorLogEvent)
         {
             Platform platform = WebBrowserUtils.GetRunningPlatform();
             string engineFullProcessPath = engine.GetEngineAppPath(platform);
