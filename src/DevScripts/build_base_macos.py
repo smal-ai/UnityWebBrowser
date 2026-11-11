@@ -9,6 +9,9 @@ def build_cef_engine_macos(arch) -> None:
     MacOS needs a custom build process because of the .plist files and specific folder layout the build needs to be in
     """
 
+    if arch not in ('x64', 'arm64'):
+        raise ValueError('Unsupported macOS architecture: ' + arch)
+
     # Project path
     cef_engine_path = os.path.abspath(os.path.join(__file__, '../../UnityWebBrowser.Engine.Cef/Main'))
     cef_engine_subprocess_path = os.path.abspath(os.path.join(__file__, '../../UnityWebBrowser.Engine.Cef/SubProcess'))
@@ -21,11 +24,11 @@ def build_cef_engine_macos(arch) -> None:
 
     # First, build main CEF engine project
     print('Building CEF Engine from {0}'.format(cef_engine_path))
-    subprocess.run(['dotnet', 'publish', '-r=osx-{0}'.format(arch), '-c=Release'], cwd=cef_engine_path)
+    subprocess.run(['dotnet', 'publish', '-r=osx-{0}'.format(arch), '-c=Release'], cwd=cef_engine_path, check=True)
 
     # Build SubProcess
     print('Building CEF Engine SubProcess from {0}'.format(cef_engine_subprocess_path))
-    subprocess.run(['dotnet', 'publish', '-r=osx-{0}'.format(arch), '-c=Release'], cwd=cef_engine_subprocess_path)
+    subprocess.run(['dotnet', 'publish', '-r=osx-{0}'.format(arch), '-c=Release'], cwd=cef_engine_subprocess_path, check=True)
 
     cef_framework_path = os.path.abspath(os.path.join(__file__, '../../ThirdParty/Libs/cef/macos{0}/Release/Chromium Embedded Framework.framework'.format(arch)))
 
@@ -40,9 +43,12 @@ def build_cef_engine_macos(arch) -> None:
     os.makedirs(cef_engine_app_frameworks_path, exist_ok=True)
 
     shutil.copy(os.path.join(cef_engine_build_path, 'UnityWebBrowser.Engine.Cef'), cef_engine_app_macos_path)
-    shutil.copy(os.path.join(cef_engine_build_path, 'info.plist'), cef_engine_app_contents_path)
+    shutil.copy(os.path.join(cef_engine_build_path, 'info.plist'), os.path.join(cef_engine_app_contents_path, 'Info.plist'))
     shutil.copy(os.path.join(cef_engine_build_path, 'icon.icns'), cef_engine_app_resources_path)
-    shutil.copytree(cef_framework_path, os.path.join(cef_engine_app_frameworks_path, 'Chromium Embedded Framework.framework'))
+    cef_distribution = os.path.dirname(os.path.dirname(cef_framework_path))
+    shutil.copy(os.path.join(cef_distribution, 'LICENSE.txt'), os.path.join(cef_engine_app_resources_path, 'LICENSE.CEF.txt'))
+    shutil.copy(os.path.join(cef_distribution, 'README.txt'), os.path.join(cef_engine_app_resources_path, 'README.CEF.txt'))
+    shutil.copytree(cef_framework_path, os.path.join(cef_engine_app_frameworks_path, 'Chromium Embedded Framework.framework'), symlinks=True)
 
     # Copy the many different helper apps needed
     subprocess_types = [
@@ -65,7 +71,7 @@ def build_cef_engine_macos(arch) -> None:
         cef_engine_subprocess_macos_path = os.path.join(cef_engine_subprocess_app_path, 'MacOS')
 
         os.makedirs(cef_engine_subprocess_macos_path, exist_ok=True)
-        shutil.copy(os.path.join(cef_engine_build_path, plist_file), os.path.join(cef_engine_subprocess_app_path, 'info.plist'))
+        shutil.copy(os.path.join(cef_engine_build_path, plist_file), os.path.join(cef_engine_subprocess_app_path, 'Info.plist'))
         shutil.copy(os.path.join(cef_engine_build_path, 'UnityWebBrowser.Engine.Cef.SubProcess'), os.path.join(cef_engine_subprocess_macos_path, 'UnityWebBrowser.Engine.Cef.SubProcess{0}'.format(name)))
 
     # Copy final app bundle to MacOS package
@@ -76,4 +82,4 @@ def build_cef_engine_macos(arch) -> None:
     if os.path.exists(cef_app_final_path):
         shutil.rmtree(cef_app_final_path)
 
-    shutil.copytree(cef_engine_app_path, cef_app_final_path)
+    shutil.copytree(cef_engine_app_path, cef_app_final_path, symlinks=True)

@@ -8,8 +8,8 @@ These prerequisites are **mandatory** to compile UWB.
 
 ```
 Unity 2021.3.x
-.NET 8 SDK (With NativeAOT)
-Python 3
+.NET 10 SDK (With NativeAOT)
+Python 3.12 or newer
 Git
 ```
 
